@@ -28,7 +28,7 @@ beta_true[,5]=1
 ## Newton-Raphson method
 fit_NR = TimeVarying_NR(time, delta, z, facility, knot, M_stop, rate = 0.001, tol = 10^(-6))
 ## GDBoost method
-fit_GD = TimeVarying_GDboost(time, delta, z, facility, knot, M_stop, rate = 0.01, track = 5, tol = 10^(-6))
+fit_GD = TimeVarying_GDboost(time, delta, z, facility, knot, M_stop, rate = 0.01, tol = 10^(-6))
 
 
 j = 1
