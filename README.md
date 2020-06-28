@@ -6,6 +6,7 @@ Estimated running time is about 0.5 hour.
 
 
 ## TimeVarying_NR(time, delta, z, facility, knot, M_stop, rate, tol)
+## Method: Newton-Raphson
 
 ### Arguments:
 - time: survival time
@@ -27,6 +28,7 @@ A *list* object:
 - basis: B spline basis
 
 ## TimeVarying_GDboost(time, delta, z, facility, knot, M_stop, rate, track, tol)
+### Method: GDBoosting 
 
 ### Arguments:
 - time: survival time
