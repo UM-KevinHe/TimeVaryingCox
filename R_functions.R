@@ -142,12 +142,12 @@ TimeVarying_NR <- function(time, delta, z, facility = NULL, knot = 5, M_stop = 5
     if(j==p) break
   }
   
-  rslt =list(theta = theta_NR, beta = beta_NR, llk_all = likelihood_NR_all, llk = likelihood_stratify, pvalue = test_NR)
+  rslt =list(theta = theta_NR, beta = beta_NR, llk_all = likelihood_NR_all, llk = likelihood_stratify, pvalue = test_NR, basis = bs8)
   return(rslt)
 }
 
 # GDboost method
-TimeVarying_GDboost <- function(time, delta, z, facility = NULL, knot= 5, M_stop = 500, rate = 0.01, track = 5, tol = 10^(-6)){
+TimeVarying_GDboost <- function(time, delta, z, facility = NULL, knot= 5, M_stop = 500, rate = 0.01, tol = 10^(-6)){
   p = ncol(z)
   N = nrow(z)
   time2=time[delta==1]
@@ -161,6 +161,7 @@ TimeVarying_GDboost <- function(time, delta, z, facility = NULL, knot= 5, M_stop
   theta_GD=matrix(rep(0, knot*p), nrow=p)  #dim P*knot
   likelihood_GD_all=dloglik_likelihood_gradient(knot,facility,delta,z,bs8,theta_GD)/N
   stage2_key=FALSE
+  track = 5 
   while (stage2_key==FALSE){
     m_stratify=m_stratify+1
     result=GDboost_stratify(knot,rate,facility,delta,z,bs8,theta_GD)
@@ -197,6 +198,6 @@ TimeVarying_GDboost <- function(time, delta, z, facility = NULL, knot= 5, M_stop
     test_GD[j]=1-pchisq(test_contrast, (knot-1))
     if(j==p) break
   }
-  rslt =list(theta = theta_GD, beta = beta_GD, llk_all = likelihood_GD_all, llk = likelihood_stratify, pvalue = test_GD, m_stratify = m_stratify)
+  rslt =list(theta = theta_GD, beta = beta_GD, llk_all = likelihood_GD_all, llk = likelihood_stratify, pvalue = test_GD, basis = bs8)
   return(rslt)
 }
