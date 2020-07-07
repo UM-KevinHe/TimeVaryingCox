@@ -6,7 +6,7 @@ Estimated running time is about 0.5 hour.
 
 
 ## TimeVarying_NR(time, delta, z, facility, knot, M_stop, rate, tol)
-## Method: Newton-Raphson
+## Method: Newton-Raphson (self-implemented)
 
 ### Arguments:
 - time: survival time
@@ -48,3 +48,7 @@ A *list* object:
 - llk: final likelihood
 - pvalue: p values for contant effect tests
 - basis: B spline basis
+
+## R package BSATV
+**BSATV** includes an R package for this project. 
+
