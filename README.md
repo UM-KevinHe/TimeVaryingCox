@@ -2,11 +2,10 @@
 
 ## example.R
 Include an example of how to use functions **TimeVarying_NR()** and **TimeVarying_GDboost()**.
-Estimated running time is about 0.5 hour. 
+Estimated running time is about several minutes. 
 
-
-## TimeVarying_NR(time, delta, z, facility, knot, M_stop, rate, tol)
-## Method: Newton-Raphson (self-implemented)
+## TimeVarying_GDboost(time, delta, z, facility, knot, M_stop, rate, track, tol)
+### Method: GDBoosting 
 
 ### Arguments:
 - time: survival time
@@ -27,8 +26,8 @@ A *list* object:
 - pvalue: p values for contant effect tests
 - basis: B spline basis
 
-## TimeVarying_GDboost(time, delta, z, facility, knot, M_stop, rate, track, tol)
-### Method: GDBoosting 
+## TimeVarying_NR(time, delta, z, facility, knot, M_stop, rate, tol)
+## Method: Newton-Raphson (self-implemented)
 
 ### Arguments:
 - time: survival time
