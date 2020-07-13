@@ -157,9 +157,9 @@ sim_data_fun <- function(nF = 50, alph = 50, seed = 12, censor.max = 30, end.tim
 #' }
 #' @export
 #' @examples
-#' dat1 = sim_data(nF = 20, p = 10, seed = 1)
+#' dat1 = sim_data(nF = 20, p = 5, seed = 1)
 # data simulation
-sim_data <- function(nF = 20, p = 10, seed = 1) {
+sim_data <- function(nF = 20, p = 5, seed = 1) {
     set.seed(seed)
     n_f = rpois(nF, lambda = 500)  #sample size for each facility
     N = sum(n_f)
@@ -250,13 +250,18 @@ sim_data <- function(nF = 20, p = 10, seed = 1) {
 TimeVarying_NR <- function(time, delta, z, facility = NULL, knot = 5, M_stop = 500, rate = 0.001, tol = 10^(-6)) {
     p = ncol(z)
     N = nrow(z)
+    if (is.null(facility)) {
+      facility = rep(1, N)
+    }
+    delta = delta[order(time)]
+    facility = facility[order(time)]
+    z = z[order(time), ]
+    time = time[order(time)]
     time2 = time[delta == 1]
     knot_set = quantile(time2, prob = seq(1:(knot - 4))/(knot - 3))
     bs7 = splines::bs(time, df = knot, knot = knot_set, intercept = TRUE, degree = 3)
     bs8 = matrix(bs7, nrow = N)  # for build beta_t
-    if (is.null(facility)) {
-        facility = rep(1, N)
-    }
+
     vfit <- survival::coxph(Surv(time, delta) ~ z)
     constant_beta <- vfit$coef
     theta_stratify = matrix(rep(0, knot * p), nrow = p)  #dim P*knot
@@ -346,13 +351,18 @@ TimeVarying_NR <- function(time, delta, z, facility = NULL, knot = 5, M_stop = 5
 TimeVarying_GDboost <- function(time, delta, z, facility = NULL, knot = 5, M_stop = 500, rate = 0.01, tol = 10^(-6)) {
     p = ncol(z)
     N = nrow(z)
+    if (is.null(facility)) {
+      facility = rep(1, N)
+    }
+    delta = delta[order(time)]
+    facility = facility[order(time)]
+    z = z[order(time), ]
+    time = time[order(time)]
     time2 = time[delta == 1]
     knot_set = quantile(time2, prob = seq(1:(knot - 4))/(knot - 3))
     bs7 = splines::bs(time, df = knot, knot = knot_set, intercept = TRUE, degree = 3)
     bs8 = matrix(bs7, nrow = N)  # for build beta_t
-    if (is.null(facility)) {
-        facility = rep(1, N)
-    }
+
     m_stratify = 0
     theta_GD = matrix(rep(0, knot * p), nrow = p)  #dim P*knot
     likelihood_GD_all = dloglik_likelihood_gradient(knot, facility, delta, z, bs8, theta_GD)/N
@@ -400,3 +410,98 @@ TimeVarying_GDboost <- function(time, delta, z, facility = NULL, knot = 5, M_sto
         basis = bs8)
     return(rslt)
 }
+
+
+TimeVarying_SGD <- function(time, delta, z, facility = NULL, knot = 5, M_stop = 500, rate = 0.01, tol = 10^(-6), seed = 1) {
+  p = ncol(z)
+  N = nrow(z)
+  if (is.null(facility)) {
+    facility = rep(1, N)
+  }
+  delta = delta[order(time)]
+  facility = facility[order(time)]
+  z = z[order(time), ]
+  time = time[order(time)]
+  time2 = time[delta == 1]
+  knot_set = quantile(time2, prob = seq(1:(knot - 4))/(knot - 3))
+  bs7 = splines::bs(time, df = knot, knot = knot_set, intercept = TRUE, degree = 3)
+  bs8 = matrix(bs7, nrow = N)  # for build beta_t
+  m = as.vector(sapply(split(facility,factor(facility)),length))
+  m_stratify=0
+  theta_stratify=matrix( rep(0, knot*p), nrow=p)  #dim P*knot
+
+  G=rep(0,p)
+  gamma=0.01 #0.01 performs better (better than 1, 0.1, 0.001, 0.0001), and is recommended by https://arxiv.org/pdf/1609.04747.pdf
+  stage2_key = FALSE
+  likelihood_stochastic_gradient_all=NULL
+  while (stage2_key==FALSE){
+    m_stratify=m_stratify+1
+    set.seed(seed*1000+m_stratify)
+    bootsample3 <- stra_sampling(m,10)
+    bootsample3 = sort(bootsample3)
+    time_sub4=time[bootsample3]
+    delta_sub4=delta[bootsample3]
+    facility_sub4=facility[bootsample3]
+    b_spline_sub4=bs8[bootsample3,]
+    z_sub4=z[bootsample3,]
+
+    result=GDboost_gradient(knot,rate,facility_sub4,delta_sub4,z_sub4,b_spline_sub4,theta_stratify)
+    if (m_stratify>1){
+      theta_stratify=theta_stratify-diag(gamma/sqrt(G))%*%matrix(result$L1,nrow=p,byrow = TRUE)
+    }
+    if (m_stratify==1){
+      theta_stratify=theta_stratify-gamma*matrix(result$L1,nrow=p,byrow = TRUE)
+    }
+    G_temp=rep(0,p)
+    for (j in 1:p){
+      G_temp[j]=sum((result$L1[((j-1)*knot+1):(j*knot)])**2)/knot
+    }
+    G=G+G_temp
+    likelihood_stratify=dloglik_likelihood_stratify(knot,facility,delta,z,bs8,theta_stratify)/N  ###a function written in function.R
+    likelihood_stochastic_gradient_all=c(likelihood_stochastic_gradient_all, likelihood_stratify)
+    beta_stochastic_gradient=matrix(rep(0, N*p), nrow=N)
+    diff_stochastic_gradient=0
+    for (j in 1:p) {
+      beta_stochastic_gradient[,j]=bs8%*%theta_stratify[j,]
+    }
+    track = 5
+    if (m_stratify>=(10+track)) {
+      llk.diff.all=NULL
+      for (key in 1:track) {
+        llk.diff.all = c(llk.diff.all, likelihood_stochastic_gradient_all[m_stratify-key+1]-likelihood_stochastic_gradient_all[m_stratify-key])
+      }
+      llk.diff=max(llk.diff.all)
+      llk.diff_null = likelihood_stochastic_gradient_all[m_stratify]-likelihood_stochastic_gradient_all[1]
+      if(abs(llk.diff/llk.diff_null) < tol) {
+        stage2_key=TRUE
+        break
+      }
+    }
+    if (m_stratify==M_stop){
+      stage2_key=TRUE
+      break
+    }
+  } #end while
+  theta_SGD = theta_stratify
+  temp = ddloglik(knot, facility, delta, z, bs8, theta_SGD, length(unique(facility)))
+  beta_SGD = matrix(rep(0, N * p), nrow = N)
+  for (j in 1:p) {
+    beta_SGD[, j] = bs8 %*% theta_SGD[j, ]
+  }
+  test_SGD = rep(0, p)
+  constrain = -diff(diag(knot * 1), differences = 1)
+  j = 0
+  repeat {
+    j = j + 1
+    theta_SGD_j = theta_SGD[j, ]
+    L2 = solve(temp$GVG)[((j - 1) * knot + 1):((j - 1) * knot + knot), ((j - 1) * knot + 1):((j - 1) * knot + knot)]
+    test_contrast = t(constrain %*% theta_SGD_j) %*% solve(constrain %*% L2 %*% t(constrain)) %*% (constrain %*%theta_SGD_j)
+    test_SGD[j] = 1 - pchisq(test_contrast, (knot - 1))
+    if (j == p)
+      break
+  }
+  rslt = list(theta = theta_SGD, beta = beta_SGD, llk_all = likelihood_stochastic_gradient_all, llk = likelihood_stratify, pvalue = test_SGD,
+              basis = bs8)
+  return(rslt)
+}
+
