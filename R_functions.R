@@ -1,3 +1,4 @@
+library(survival)
 
 # Construct AR1 covariance matrix
 AR1 <- function(tau, m) {
