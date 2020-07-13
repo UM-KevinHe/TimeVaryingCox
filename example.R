@@ -26,7 +26,7 @@ beta_true[,3]=-1
 beta_true[,4]=-(time/3)**2*exp(time/2)
 beta_true[,5]=1
 
-## Newton-Raphson method
+## Newton-Raphson method: it may run out of memory, so this part of code is commented out
 t0 = proc.time()
 # fit_NR = NULL
 # knot_set=quantile(time[delta],prob=seq(1:(knot-4))/(knot-3))
